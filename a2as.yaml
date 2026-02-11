@@ -1,0 +1,338 @@
+manifest:
+  version: "0.1.3"
+  schema: https://a2as.org/cert/schema
+  subject:
+    name: snoowp/research-adk-agents
+    source: https://github.com/snoowp/research-adk-agents
+    branch: main
+    commit: "7a92dc9b"
+    scope: [adk-backend/agents/enhanced_orchestrator.py, adk-backend/app.py, adk-backend/services/adk_runner.py, adk-backend/agents/__init__.py]
+  issued:
+    by: A2AS.org
+    at: '2026-02-11T16:57:53Z'
+    url: https://a2as.org/certified/agents/snoowp/research-adk-agents
+  signatures:
+    digest: sha256:0bvQJQRIDMer_j16jU-KdxWv_MwBUrNCuDnzrxEga1g
+    key: ed25519:cvsXyPT4Lf7rrQ--kb2P509CRA2RcTk3cR_EW-c9X9s
+    sig: ed25519:m_oWJGN_VwqFhNNTaM20kH55OW0N7ffAAGaEnMaQsL97B0_UWSnbL0gI3flsm-01jSzkR5OQDoVKWM209BP9CQ
+
+agents:
+  agent.create_enhanced_research_orchestrator:
+    type: factory
+    models: [gemini-2.5-flash]
+    params:
+      query_model: query_model
+      reasoning_model: reasoning_model
+      max_loops: max_loops
+      initial_queries: initial_queries
+      function: create_enhanced_research_orchestrator
+  research_agent.:
+    type: instance
+    models: [gemini-2.5-flash]
+    params:
+      class: EnhancedResearchOrchestrator
+      base: BaseAgent
+      name: enhanced_research_orchestrator
+      description: Enhanced orchestrator with reflection loops and parallel processing
+      function: create_enhanced_research_orchestrator
+  research_agent._answer_synthesizer:
+    type: instance
+    models: [reasoning_model]
+    params:
+      name: answer_synthesizer
+      description: Synthesizes research into comprehensive answers
+      instruction: [Generate a high-quality answer to the user's question based on the provided research summaries., 'Instructions:',
+        '- The current date is {...}.', '- Read the research topic from session state under the key ''research_topic''.',
+        '- Read the final, consolidated research summaries from session state under the key ''final_research_summary''.',
+        '- Generate a comprehensive, well-structured answer based on all the research findings.', '- Include all citations
+          from the summaries in the answer correctly.', '- Provide a comprehensive, well-structured response that addresses
+          the user''s question.', 'MARKDOWN STRUCTURE REQUIREMENTS:', '- START with a proper markdown header: begin your response
+          with # for the main title/topic', '- Apply markdown hierarchy intelligently: use # for main topics, ## for major
+          sections, ### for subsections', '- Use **bold** strategically for key terms, critical findings, and important concepts
+          that need emphasis', '- Use *italics* selectively for emphasis, technical terms, or when introducing new concepts',
+        '- Choose appropriate list structures: use - for bullet points, 1. for numbered sequences, when organizing related
+          information', '- Use > blockquotes for highlighting particularly significant findings, expert quotes, or key insights',
+        '- Apply proper paragraph breaks and spacing to enhance readability and logical flow', 'CRITICAL: Your response must
+          begin with a markdown header (# Title) to ensure proper document structure parsing.', 'Read the research topic and
+          summaries from session state and synthesize a complete, well-formatted answer.']
+      output_key: final_answer
+      class: EnhancedResearchOrchestrator
+      function: create_enhanced_research_orchestrator
+  research_agent._query_generator:
+    type: instance
+    models: [query_model]
+    params:
+      name: query_generator
+      description: Generates diverse search queries from user questions
+      instruction: [Your goal is to generate sophisticated and diverse web search queries to research a topic., 'Instructions:',
+        '- Each query should focus on one specific aspect of the original question.', '- Don''t produce more than {...} queries.',
+        '- Queries should be diverse, if the topic is broad, generate more than 1 query.', '- Don''t generate multiple similar
+          queries, 1 is enough.', '- The current date is {...}.', The research topic is provided in the user's message., 'Format:',
+        '- Format your response as a JSON object with this exact schema:', '{', '"queries": [', '{"query": "search query text",
+          "rationale": "why this query is useful"},', "...", ']', '}', 'Example:', '```json', '{', '"queries": [', ']', '}',
+        '```', 'Based on the user''s research topic, generate appropriate queries.']
+      output_schema: SearchQueryList
+      output_key: search_queries
+      disallow_transfer_to_parent: "True"
+      disallow_transfer_to_peers: "True"
+      class: EnhancedResearchOrchestrator
+      function: create_enhanced_research_orchestrator
+  research_agent._reflection_agent:
+    type: instance
+    models: [reasoning_model]
+    params:
+      name: reflection_analyst
+      description: Analyzes research quality and identifies gaps
+      instruction: [You are an expert research assistant analyzing research summaries., 'Instructions:', '- Read the research
+          topic from session state under the key ''research_topic''.', '- Read the collected research summaries from the session
+          state under the key ''research_summary''.', '- Identify knowledge gaps or areas that need deeper exploration and
+          generate follow-up queries.', '- If provided summaries are sufficient to answer the user''s question, don''t generate
+          follow-up queries.', '- If there is a knowledge gap, generate follow-up queries that would help expand understanding.',
+        '- Focus on technical details, implementation specifics, or emerging trends that weren''t fully covered.', 'Requirements:',
+        '- Ensure follow-up queries are self-contained and include necessary context for web search.', 'Output Format:', '-
+          Format your response as a JSON object with this exact schema:', '{', '"is_sufficient": boolean,', '"reasoning":
+          "Explanation of the assessment",', '"follow_up_queries": [', '{"query": "additional query", "rationale": "why it
+          is needed"}', ']', '}', 'Example:', '```json', '{', '"is_sufficient": true, // or false', '"reasoning": "The summary
+          lacks information about performance metrics and benchmarks.",', '"follow_up_queries": [', ']', '}', '```', Analyze
+          the research summaries and determine if additional research is needed. Read the topic and summaries from session
+          state.]
+      output_schema: Reflection
+      output_key: reflection_analysis
+      disallow_transfer_to_parent: "True"
+      disallow_transfer_to_peers: "True"
+      class: EnhancedResearchOrchestrator
+      function: create_enhanced_research_orchestrator
+  research_agent._web_searcher:
+    type: instance
+    models: [query_model]
+    tools: [google_search]
+    params:
+      name: web_searcher
+      description: Performs web searches and summarizes findings
+      instruction: ['You are an advanced research assistant. Conduct targeted Google Searches for a list of queries to gather
+          the most recent, credible information and synthesize it into a single, cohesive summary.', 'Instructions:', '- You
+          will find a list of search queries in session state under the key ''queries_to_search''.', '- For EACH query in
+          the list, use the `google_search` tool to find relevant information.', '- After completing all searches, consolidate
+          all key findings into a single, well-written summary.', '- The summary should be a comprehensive report based on
+          all your search findings combined.', '- Only include the information found in the search results, don''t make up
+          any information.', 'MARKDOWN FORMATTING REQUIREMENTS:', '- Use markdown headers intelligently: ## for major research
+          areas, ### for specific findings or subtopics', '- Apply **bold** strategically for critical data points, key findings,
+          dates, and breakthrough information', '- Use *italics* selectively for technical terms, study names, or concepts
+          being introduced', '- Structure with appropriate lists: - for related findings, 1. for sequential information or
+          processes', '- Use > blockquotes for direct quotes from sources or particularly significant research conclusions',
+        '- Apply proper spacing and paragraph breaks to make dense research information scannable and readable', Format your
+          summary using markdown elements that enhance comprehension and highlight the most important information., 'Read
+          the list of search queries from session state, conduct a comprehensive search for each, and synthesize a unified,
+          well-formatted summary.']
+      output_key: search_results
+      class: EnhancedResearchOrchestrator
+      function: create_enhanced_research_orchestrator
+
+models:
+  gemini-2.5-flash:
+    type: default
+    agents: [agent.create_enhanced_research_orchestrator, research_agent.]
+  query_model:
+    type: literal
+    agents: [research_agent._query_generator, research_agent._web_searcher]
+  reasoning_model:
+    type: literal
+    agents: [research_agent._reflection_agent, research_agent._answer_synthesizer]
+
+tools:
+  google_search:
+    type: module
+    agents: [research_agent._web_searcher]
+
+imports:
+  ADKRunner: services.adk_runner.ADKRunner
+  ADKSessionManager: services.adk_runner.ADKSessionManager
+  Any: typing.Any
+  asynccontextmanager: contextlib.asynccontextmanager
+  AsyncGenerator: typing.AsyncGenerator
+  asyncio: asyncio
+  BaseAgent: google.adk.agents.BaseAgent
+  BaseModel: pydantic.BaseModel
+  CORSMiddleware: fastapi.middleware.cors.CORSMiddleware
+  create_enhanced_research_orchestrator: enhanced_orchestrator.create_enhanced_research_orchestrator
+  datetime: datetime.datetime
+  Dict: typing.Dict
+  EnhancedResearchOrchestrator: enhanced_orchestrator.EnhancedResearchOrchestrator
+  Event: google.adk.events.Event
+  EventActions: google.adk.events.EventActions
+  FastAPI: fastapi.FastAPI
+  FileResponse: fastapi.responses.FileResponse
+  google_search: google.adk.tools.google_search
+  HTTPException: fastapi.HTTPException
+  InMemorySessionService: google.adk.sessions.InMemorySessionService
+  InvocationContext: google.adk.agents.invocation_context.InvocationContext
+  json: json
+  List: typing.List
+  LlmAgent: google.adk.agents.LlmAgent
+  load_dotenv: dotenv.load_dotenv
+  logging: logging
+  Optional: typing.Optional
+  os: os
+  re: re
+  Reflection: models.schemas.Reflection
+  Request: fastapi.Request
+  Runner: google.adk.runners.Runner
+  SearchQuery: models.schemas.SearchQuery
+  SearchQueryList: models.schemas.SearchQueryList
+  StaticFiles: fastapi.staticfiles.StaticFiles
+  StreamingResponse: fastapi.responses.StreamingResponse
+  types: google.genai.types
+  uuid: uuid
+  uvicorn: uvicorn
+
+functions:
+  __init__:
+    type: sync
+    module: adk-backend.services.adk_runner
+    args: [self, session_manager]
+  _create_research_summary:
+    type: sync
+    module: adk-backend.agents.enhanced_orchestrator
+    args: [self, search_summaries]
+    params:
+      returns: str
+  _get_queries_from_state:
+    type: sync
+    module: adk-backend.agents.enhanced_orchestrator
+    args: [self, ctx]
+    params:
+      returns: List[Dict]
+  _get_reflection_analysis:
+    type: sync
+    module: adk-backend.agents.enhanced_orchestrator
+    args: [self, ctx]
+    params:
+      returns: Dict
+  _run_async_impl:
+    type: async
+    module: adk-backend.agents.enhanced_orchestrator
+    args: [self, ctx]
+    params:
+      returns: AsyncGenerator
+  cleanup_session:
+    type: sync
+    module: adk-backend.services.adk_runner
+    args: [self, session_id]
+  create_enhanced_research_orchestrator:
+    type: sync
+    module: adk-backend.agents.enhanced_orchestrator
+    args: [query_model, reasoning_model, max_loops, initial_queries]
+    params:
+      returns: EnhancedResearchOrchestrator
+  create_research_session:
+    type: async
+    module: adk-backend.app
+    args: [request]
+  create_runner:
+    type: sync
+    module: adk-backend.services.adk_runner
+    args: [self, session_id]
+    params:
+      returns: Runner
+  create_session:
+    type: async
+    module: adk-backend.services.adk_runner
+    args: [self, user_question, config]
+    params:
+      returns: str
+  delete_research_session:
+    type: async
+    module: adk-backend.app
+    args: [session_id]
+  event_generator:
+    type: async
+    module: adk-backend.app
+  get_current_date:
+    type: sync
+    module: adk-backend.agents.enhanced_orchestrator
+  get_effort_config:
+    type: sync
+    module: adk-backend.app
+    args: [effort_level]
+    params:
+      returns: Dict
+  get_research_session:
+    type: async
+    module: adk-backend.app
+    args: [session_id]
+  get_runner:
+    type: sync
+    module: adk-backend.services.adk_runner
+    args: [self, session_id]
+    params:
+      returns: Optional[Runner]
+  get_session:
+    type: sync
+    module: adk-backend.services.adk_runner
+    args: [self, session_id]
+    params:
+      returns: Optional[Dict]
+  health_check:
+    type: async
+    module: adk-backend.app
+  lifespan:
+    type: async
+    module: adk-backend.app
+    args: [app]
+  run_research_agent_stream:
+    type: async
+    module: adk-backend.services.adk_runner
+    args: [self, session_id, user_question]
+    params:
+      returns: AsyncGenerator
+  serve_frontend:
+    type: async
+    module: adk-backend.app
+    args: [path]
+  serve_frontend_root:
+    type: async
+    module: adk-backend.app
+  stream_research_direct:
+    type: async
+    module: adk-backend.app
+    args: [request]
+  stream_research_results:
+    type: async
+    module: adk-backend.app
+    args: [session_id]
+
+variables:
+  GOOGLE_API_KEY:
+    type: env
+    params:
+      caller: [os.environ, os.getenv]
+      path: [adk-backend.app]
+  GOOGLE_GENAI_USE_VERTEXAI:
+    type: env
+    params:
+      caller: [os.environ, os.getenv]
+      path: [adk-backend.app]
+
+files:
+  file_path:
+    type: variable
+    actions: [read]
+    params:
+      caller: [os.path.exists, os.path.isfile]
+  frontend_path:
+    type: variable
+    actions: [read]
+    params:
+      caller: [os.path.exists]
+  index.html:
+    type: pattern
+    actions: [read]
+    params:
+      caller: [os.path.join]
+      pattern: [frontend_path, index.html]
+  path:
+    type: pattern
+    actions: [read]
+    params:
+      caller: [os.path.join]
+      pattern: [frontend_path, path]
